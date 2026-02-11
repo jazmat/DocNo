@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: docno-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: docgen_db
+      MYSQL_USER: docgen_user
+      MYSQL_PASSWORD: docgen_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - docno-network
+
+  backend:
+    build: ./backend
+    container_name: docno-backend
+    depends_on:
+      - mysql
+    environment:
+      NODE_ENV: production
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: docgen_db
+      DB_USER: docgen_user
+      DB_PASSWORD: docgen_password
+    ports:
+      - "3000:3000"
+    networks:
+      - docno-network
+
+  frontend:
+    build: ./frontend
+    container_name: docno-frontend
+    environment:
+      REACT_APP_API_URL: http://localhost:3000/api
+    ports:
+      - "3001:3000"
+    networks:
+      - docno-network
+
+volumes:
+  mysql_data:
+
+networks:
+  docno-network:
+    driver: bridge
