@@ -1,6 +1,6 @@
 // src/routes/documents.js
 const express = require('express');
-const { Op } = require('sequelize');
+const { Op, UniqueConstraintError } = require('sequelize');
 const Document = require('../models/Document');
 const User = require('../models/User');
 const { generateDocumentNumber } = require('../services/documentNumberService');
@@ -25,22 +25,46 @@ router.post('/generate', authenticateToken, async (req, res, next) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        const documentNumber = await generateDocumentNumber(
-            value.department,
-            value.document_category,
-            user.full_name
-        );
+        let document;
+        let documentNumber;
+        const maxAttempts = 5;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                documentNumber = await generateDocumentNumber(
+                    value.department,
+                    value.document_category,
+                    user.full_name
+                );
 
-        const document = await Document.create({
-            document_number: documentNumber,
-            user_id: req.user.id,
-            full_name: user.full_name,
-            email: user.email,
-            document_title: value.document_title,
-            document_category: value.document_category,
-            department: value.department,
-            metadata: { notes: value.notes },
-        });
+                document = await Document.create({
+                    document_number: documentNumber,
+                    user_id: req.user.id,
+                    full_name: user.full_name,
+                    email: user.email,
+                    document_title: value.document_title,
+                    document_category: value.document_category,
+                    department: value.department,
+                    metadata: { notes: value.notes },
+                });
+
+                break;
+            } catch (err) {
+                const isUniqueErr =
+                    err instanceof UniqueConstraintError ||
+                    err.name === 'SequelizeUniqueConstraintError' ||
+                    err.name === 'UniqueConstraintError';
+                if (isUniqueErr && attempt < maxAttempts) {
+                    logger.warn(`Unique constraint collision generating document number (attempt ${attempt}), retrying...`);
+                    await new Promise((r) => setTimeout(r, 50 * attempt));
+                    continue;
+                }
+                throw err;
+            }
+        }
+
+        if (!document) {
+            return res.status(500).json({ error: 'Failed to generate document number after retries' });
+        }
 
         await logAction(
             req.user.id,
