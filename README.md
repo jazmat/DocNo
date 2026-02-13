@@ -38,4 +38,4 @@ A full-stack application for generating unique, standardized document numbers wi
 1. Clone the repository
 ```bash
 git clone <repo-url>
-cd DocNo
+cd DocNo# DocNo
