@@ -46,7 +46,7 @@ const Login = () => {
                 pattern: { value: /^\S+@\S+$/i, message: 'Invalid email' },
               })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder="your@email.com"
+              placeholder="<your email"
             />
             {errors.email && <span className="text-red-500 text-sm">{errors.email.message}</span>}
           </div>

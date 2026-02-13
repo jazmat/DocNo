@@ -23,9 +23,17 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 401) {
+        // Handle authentication errors (401) and authorization errors (403)
+        if (error.response?.status === 401 || error.response?.status === 403) {
             localStorage.removeItem('authToken');
-            window.location.href = '/login';
+            localStorage.removeItem('user');
+
+            // Use window.location for navigation to ensure clean state reset
+            // This is acceptable here since we want to force a complete app reload
+            // after authentication failure
+            if (window.location.pathname !== '/login') {
+                window.location.href = '/login';
+            }
         }
         return Promise.reject(error);
     }

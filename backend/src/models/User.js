@@ -47,7 +47,7 @@ const User = sequelize.define(
             type: DataTypes.STRING(100),
         },
         reset_token: {
-            type: DataTypes.STRING(100),
+            type: DataTypes.STRING(512),
         },
         reset_token_expiry: {
             type: DataTypes.DATE,
