@@ -1,9 +1,10 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
-
+import History from "./pages/History";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/admin/Admin";
+import Profile from "./pages/Profile";
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user } = useAuth();
 
@@ -42,6 +43,8 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+      <Route path="/history" element={<History />} />
+      <Route path="/profile" element={<Profile />} />
     </Routes>
   );
 }

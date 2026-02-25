@@ -1,94 +1,121 @@
-// src/routes/users.js
-const express = require('express');
-const User = require('../models/User');
-const { hashPassword, comparePassword } = require('../utils/passwordHash');
-const { authenticateToken } = require('../middleware/auth');
-const { logAction } = require('../services/auditService');
-const logger = require('../utils/logger');
+/**
+ * File: backend/src/routes/users.js
+ * Purpose: User profile management
+ */
 
+const express = require("express");
 const router = express.Router();
+const bcrypt = require("bcryptjs");
 
-// Get Profile
-router.get('/profile', authenticateToken, async (req, res, next) => {
+const authMiddleware = require("../../middleware/authMiddleware");
+const db = require("../config/db");
+
+/* ==========================================
+   GET PROFILE
+========================================== */
+router.get("/profile", authMiddleware, async (req, res) => {
     try {
-        const user = await User.findByPk(req.user.id, {
-            attributes: { exclude: ['password_hash', 'reset_token'] },
+        const [rows] = await db.execute(
+            `
+      SELECT
+        id,
+        full_name,
+        email,
+        department,
+        is_admin,
+        is_active,
+        created_at
+      FROM users
+      WHERE id = ?
+      `,
+            [req.user.id]
+        );
+
+        const user = rows[0];
+
+        res.json({
+            success: true,
+            user: {
+                ...user,
+                role: user.is_admin ? "Administrator" : "User",
+                status: user.is_active ? "Active" : "Inactive",
+            },
         });
 
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        res.json(user);
     } catch (error) {
-        next(error);
+        console.error("PROFILE FETCH ERROR:", error);
+        res.status(500).json({ error: "Failed to load profile" });
     }
 });
 
-// Update Profile
-router.put('/profile', authenticateToken, async (req, res, next) => {
+/* ==========================================
+   UPDATE PROFILE
+========================================== */
+router.put("/profile", authMiddleware, async (req, res) => {
     try {
         const { full_name, department } = req.body;
 
-        const user = await User.findByPk(req.user.id);
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        const oldValues = { full_name: user.full_name, department: user.department };
-        await user.update({ full_name, department });
-
-        await logAction(
-            req.user.id,
-            'UPDATE_PROFILE',
-            'users',
-            user.id,
-            oldValues,
-            { full_name, department },
-            req.ip,
-            req.get('user-agent')
+        await db.execute(
+            `UPDATE users SET full_name=?, department=? WHERE id=?`,
+            [full_name, department, req.user.id]
         );
 
-        logger.info(`Profile updated for user: ${user.email}`);
-        res.json({ message: 'Profile updated successfully', user });
+        res.json({ success: true });
+
     } catch (error) {
-        next(error);
+        console.error("PROFILE UPDATE ERROR:", error);
+        res.status(500).json({ error: "Failed to update profile" });
     }
 });
 
-// Change Password
-router.put('/change-password', authenticateToken, async (req, res, next) => {
+/* ==========================================
+   CHANGE PASSWORD
+========================================== */
+router.put("/change-password", authMiddleware, async (req, res) => {
     try {
-        const { oldPassword, newPassword } = req.body;
+        const { currentPassword, newPassword } = req.body;
 
-        const user = await User.findByPk(req.user.id);
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        const isPasswordValid = await comparePassword(oldPassword, user.password_hash);
-        if (!isPasswordValid) {
-            return res.status(401).json({ error: 'Current password is incorrect' });
-        }
-
-        const password_hash = await hashPassword(newPassword);
-        await user.update({ password_hash });
-
-        await logAction(
-            req.user.id,
-            'CHANGE_PASSWORD',
-            'users',
-            user.id,
-            null,
-            null,
-            req.ip,
-            req.get('user-agent')
+        /**
+         * IMPORTANT:
+         * Your DB uses password_hash (NOT password)
+         */
+        const [rows] = await db.execute(
+            `SELECT password_hash FROM users WHERE id=?`,
+            [req.user.id]
         );
 
-        logger.info(`Password changed for user: ${user.email}`);
-        res.json({ message: 'Password changed successfully' });
+        if (!rows.length) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        const storedHash = rows[0].password_hash;
+
+        const valid = await bcrypt.compare(
+            currentPassword,
+            storedHash
+        );
+
+        if (!valid) {
+            return res.status(400).json({
+                error: "Current password incorrect",
+            });
+        }
+
+        const newHash = await bcrypt.hash(newPassword, 10);
+
+        await db.execute(
+            `UPDATE users SET password_hash=? WHERE id=?`,
+            [newHash, req.user.id]
+        );
+
+        res.json({
+            success: true,
+            message: "Password changed successfully",
+        });
+
     } catch (error) {
-        next(error);
+        console.error("PASSWORD CHANGE ERROR:", error);
+        res.status(500).json({ error: "Failed to change password" });
     }
 });
 

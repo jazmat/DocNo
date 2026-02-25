@@ -1,4 +1,5 @@
 // frontend/src/components/DocumentForm.jsx
+
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import api from '../services/api';
@@ -10,19 +11,48 @@ const DocumentForm = ({ onSuccess }) => {
             department: 'HR',
         },
     });
+
     const [preview, setPreview] = useState(null);
     const [loading, setLoading] = useState(false);
 
     const category = watch('document_category');
     const department = watch('department');
 
+    /**
+     * Normalize backend response
+     * Ensures parent always receives:
+     * { documentNumber: "DOC-XXXX" }
+     */
+    const normalizeResponse = (response) => {
+        const payload = response?.data;
+
+        return {
+            documentNumber:
+                payload?.documentNumber ||
+                payload?.data?.documentNumber ||
+                payload?.result?.documentNumber ||
+                null,
+            ...payload,
+        };
+    };
+
     const onSubmit = async (data) => {
         try {
             setLoading(true);
+
             const response = await api.post('/documents/generate', data);
-            setPreview(null);
+
+            const normalized = normalizeResponse(response);
+
+            if (!normalized.documentNumber) {
+                throw new Error("Invalid server response");
+            }
+
+            setPreview(normalized);
             reset();
-            if (onSuccess) onSuccess(response.data);
+
+            if (onSuccess) onSuccess(normalized);
+
         } catch (error) {
             alert('Error: ' + (error.response?.data?.error || error.message));
         } finally {
@@ -31,7 +61,6 @@ const DocumentForm = ({ onSuccess }) => {
     };
 
     const handlePreview = async (data) => {
-        // This would call the backend to generate preview
         setPreview(data);
     };
 
@@ -40,18 +69,26 @@ const DocumentForm = ({ onSuccess }) => {
             <h2 className="text-2xl font-bold mb-6">Generate Document Number</h2>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+
                 <div>
                     <label className="block text-sm font-medium mb-2">Document Title</label>
                     <input
                         type="text"
-                        {...register('document_title', { required: 'Required', maxLength: { value: 255, message: 'Max 255 characters' } })}
+                        {...register('document_title', {
+                            required: 'Required',
+                            maxLength: { value: 255, message: 'Max 255 characters' }
+                        })}
                         className="w-full px-4 py-2 border rounded-lg"
                         placeholder="Enter document title"
                     />
-                    {errors.document_title && <span className="text-red-500 text-sm">{errors.document_title.message}</span>}
+                    {errors.document_title &&
+                        <span className="text-red-500 text-sm">
+                            {errors.document_title.message}
+                        </span>}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
+
                     <div>
                         <label className="block text-sm font-medium mb-2">Category</label>
                         <select
@@ -82,6 +119,7 @@ const DocumentForm = ({ onSuccess }) => {
                             <option>Operations</option>
                         </select>
                     </div>
+
                 </div>
 
                 <div>
@@ -101,6 +139,7 @@ const DocumentForm = ({ onSuccess }) => {
                 >
                     {loading ? 'Generating...' : 'Generate Document Number'}
                 </button>
+
             </form>
 
             {preview && (
@@ -114,6 +153,7 @@ const DocumentForm = ({ onSuccess }) => {
                     </div>
                 </div>
             )}
+
         </div>
     );
 };

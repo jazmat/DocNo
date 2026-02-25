@@ -1,54 +1,26 @@
-// src/app.js
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-require('express-async-errors');
+/**
+ * File: backend/src/app.js
+ */
 
-const authRoutes = require('./routes/auth');
-const documentRoutes = require('./routes/documents');
-const userRoutes = require('./routes/users');
-const errorHandler = require('./middleware/errorHandler');
-const logger = require('./utils/logger');
-const { apiLimiter, authLimiter, documentLimiter } = require('./middleware/rateLimiter');
+const express = require("express");
+const cors = require("cors");
 
 const app = express();
 
-// Security Middleware
-app.use(helmet());
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3001', 'http://localhost:3000'],
-  credentials: true,
-}));
+app.use(cors());
+app.use(express.json());
 
-// Body Parser Middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Logging Middleware
-app.use(morgan('combined', { stream: logger.stream }));
-
-// Rate Limiting
-app.use('/api/', apiLimiter);
-app.use('/api/auth/', authLimiter);
-app.use('/api/documents/generate', documentLimiter);
-
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/documents', documentRoutes);
-app.use('/api/users', userRoutes);
-
-// Health check
-app.get('/health', (req, res) => {
-    res.json({ status: 'OK', timestamp: new Date() });
+app.get("/health", (req, res) => {
+   res.json({ status: "OK" });
 });
 
-// 404 handler
+/* ROUTES */
+app.use("/api/auth", require("./routes/auth"));
+app.use("/api/documents", require("./routes/documents"));
+app.use("/api/users", require("./routes/users"));
+
 app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+   res.status(404).json({ error: "Route not found" });
 });
-
-// Error handling
-app.use(errorHandler);
 
 module.exports = app;

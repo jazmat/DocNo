@@ -1,324 +1,116 @@
-// src/routes/documents.js
-const express = require("express");
-const { Op, UniqueConstraintError } = require("sequelize");
-const Document = require("../models/Document");
-const User = require("../models/User");
-const { generateDocumentNumber } = require("../services/documentNumberService");
-const {
-  validateDocument,
-  validateStatusUpdate,
-  validateStatusTransition,
-} = require("../utils/validators");
-const { authenticateToken, requireAdmin } = require("../middleware/auth");
-const { logAction } = require("../services/auditService");
-const { sendDocumentConfirmation } = require("../services/emailService");
-const logger = require("../utils/logger");
+/**
+ * File: backend/src/routes/documents.js
+ * Purpose: Document generation + history
+ */
 
+const express = require("express");
 const router = express.Router();
 
-// Generate Document Number
-router.post("/generate", authenticateToken, async (req, res, next) => {
+const authMiddleware = require("../../middleware/authMiddleware");
+const db = require("../config/db");
+const { sendDocumentEmail } = require("../services/emailService");
+
+const departmentMap = {
+  HR: 1,
+  Finance: 2,
+  IT: 3,
+  Marketing: 4,
+  Operations: 5,
+};
+
+const categoryMap = {
+  Report: 1,
+  Template: 2,
+  Presentation: 3,
+  Invoice: 4,
+  Contract: 5,
+  Proposal: 6,
+  Memo: 7,
+  Other: 8,
+};
+
+/* =====================================================
+   GENERATE DOCUMENT
+===================================================== */
+router.post("/generate", authMiddleware, async (req, res) => {
   try {
-    const { error, value } = validateDocument(req.body);
-    if (error) {
-      return res.status(400).json({ error: error.details[0].message });
-    }
+    const user = req.user;
 
-    const user = await User.findByPk(req.user.id);
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
+    const {
+      document_title,
+      document_category,
+      department,
+      notes,
+    } = req.body;
 
-    let document;
-    let documentNumber;
-    const maxAttempts = 5;
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        documentNumber = await generateDocumentNumber(
-          value.department,
-          value.document_category,
-          user.full_name,
-        );
+    const department_id = departmentMap[department];
+    const category_id = categoryMap[document_category];
 
-        document = await Document.create({
-          document_number: documentNumber,
-          user_id: req.user.id,
-          full_name: user.full_name,
-          email: user.email,
-          document_title: value.document_title,
-          document_category: value.document_category,
-          department: value.department,
-          metadata: { notes: value.notes },
-        });
+    const documentNumber = `DOC-${Date.now()}`;
 
-        break;
-      } catch (err) {
-        const isUniqueErr =
-          err instanceof UniqueConstraintError ||
-          err.name === "SequelizeUniqueConstraintError" ||
-          err.name === "UniqueConstraintError";
-        if (isUniqueErr && attempt < maxAttempts) {
-          logger.warn(
-            `Unique constraint collision generating document number (attempt ${attempt}), retrying...`,
-          );
-          await new Promise((r) => setTimeout(r, 50 * attempt));
-          continue;
-        }
-        throw err;
-      }
-    }
-
-    if (!document) {
-      return res
-        .status(500)
-        .json({ error: "Failed to generate document number after retries" });
-    }
-
-    await logAction(
-      req.user.id,
-      "CREATE_DOCUMENT",
-      "documents",
-      document.id,
-      null,
-      { document_number: documentNumber },
-      req.ip,
-      req.get("user-agent"),
+    await db.execute(
+      `INSERT INTO documents
+       (title, document_number, department_id, category_id, user_id)
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        document_title,
+        documentNumber,
+        department_id,
+        category_id,
+        user.id,
+      ]
     );
 
-    const documentData = {
-      documentNumber: document.document_number,
-      fullName: document.full_name,
-      email: document.email,
-      documentTitle: document.document_title,
-      category: document.document_category,
-      department: document.department,
-      generatedDate: document.generated_at,
-    };
+    await sendDocumentEmail(user.email, documentNumber)
+      .catch(err => console.error("EMAIL FAILURE:", err.message));
 
-    await sendDocumentConfirmation(user.email, documentData);
-
-    logger.info(`Document generated: ${documentNumber} by user ${user.email}`);
     res.status(201).json({
-      message: "Document number generated successfully",
-      document: {
-        id: document.id,
-        documentNumber: document.document_number,
-        documentTitle: document.document_title,
-        category: document.document_category,
-        department: document.department,
-        status: document.status,
-        generatedAt: document.generated_at,
-      },
+      success: true,
+      documentNumber,
+      document_title,
+      document_category,
+      department,
+      notes,
     });
+
   } catch (error) {
-    next(error);
+    console.error("DOCUMENT ERROR:", error);
+    res.status(500).json({ error: "Failed to generate document" });
   }
 });
 
-// Get Document History
-router.get("/history", authenticateToken, async (req, res, next) => {
+/* =====================================================
+   DOCUMENT HISTORY
+===================================================== */
+router.get("/history", authMiddleware, async (req, res) => {
   try {
-    const {
-      page: pageParam = 1,
-      limit: limitParam = 10,
-      status,
-      category,
-    } = req.query;
+    const user = req.user;
 
-    // Validate and parse pagination parameters
-    const page = Math.max(1, parseInt(pageParam) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(limitParam) || 10));
-
-    const where = { user_id: req.user.id };
-    if (status) where.status = status;
-    if (category) where.document_category = category;
-
-    const documents = await Document.findAndCountAll({
-      where,
-      offset: (page - 1) * limit,
-      limit: limit,
-      order: [["generated_at", "DESC"]],
-    });
+    const [rows] = await db.execute(
+      `
+      SELECT
+        d.id,
+        d.document_number,
+        d.title,
+        d.created_at,
+        d.department_id,
+        d.category_id
+      FROM documents d
+      WHERE d.user_id = ?
+      ORDER BY d.created_at DESC
+      `,
+      [user.id]
+    );
 
     res.json({
-      total: documents.count,
-      pages: Math.ceil(documents.count / limit),
-      currentPage: page,
-      documents: documents.rows,
+      success: true,
+      documents: rows,
     });
+
   } catch (error) {
-    next(error);
+    console.error("HISTORY ERROR:", error);
+    res.status(500).json({ error: "Failed to fetch history" });
   }
 });
-
-// Get Document by ID
-router.get("/:id", authenticateToken, async (req, res, next) => {
-  try {
-    const document = await Document.findByPk(req.params.id);
-
-    if (!document) {
-      return res.status(404).json({ error: "Document not found" });
-    }
-
-    if (document.user_id !== req.user.id && !req.user.is_admin) {
-      return res.status(403).json({ error: "Access denied" });
-    }
-
-    res.json(document);
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Update Document Status
-router.put("/:id/status", authenticateToken, async (req, res, next) => {
-  try {
-    // Validate status input
-    const { error, value } = validateStatusUpdate(req.body);
-    if (error) {
-      return res.status(400).json({ error: error.details[0].message });
-    }
-
-    const { status } = value;
-
-    const document = await Document.findByPk(req.params.id);
-    if (!document) {
-      return res.status(404).json({ error: "Document not found" });
-    }
-
-    if (document.user_id !== req.user.id && !req.user.is_admin) {
-      return res.status(403).json({ error: "Access denied" });
-    }
-
-    // Validate status transition
-    if (!validateStatusTransition(document.status, status)) {
-      return res.status(400).json({
-        error: `Invalid status transition from ${document.status} to ${status}`,
-      });
-    }
-
-    const oldValues = { status: document.status };
-    await document.update({ status, last_used_at: new Date() });
-
-    await logAction(
-      req.user.id,
-      "UPDATE_DOCUMENT",
-      "documents",
-      document.id,
-      oldValues,
-      { status },
-      req.ip,
-      req.get("user-agent"),
-    );
-
-    logger.info(
-      `Document status updated: ${document.document_number} to ${status}`,
-    );
-    res.json({ message: "Document status updated", document });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Search Documents (Admin)
-router.get(
-  "/search",
-  authenticateToken,
-  requireAdmin,
-  async (req, res, next) => {
-    try {
-      const {
-        query,
-        category,
-        department,
-        startDate,
-        endDate,
-        page: pageParam = 1,
-        limit: limitParam = 20,
-      } = req.query;
-
-      // Validate and parse pagination parameters
-      const page = Math.max(1, parseInt(pageParam) || 1);
-      const limit = Math.min(100, Math.max(1, parseInt(limitParam) || 20));
-
-      const where = {};
-      if (query) {
-        // Sanitize search query by escaping SQL wildcards and limiting length
-        const sanitizedQuery = query
-          .replace(/[%_\\]/g, "\\$&")
-          .substring(0, 100)
-          .trim();
-
-        if (sanitizedQuery) {
-          where[Op.or] = [
-            { document_number: { [Op.like]: `%${sanitizedQuery}%` } },
-            { document_title: { [Op.like]: `%${sanitizedQuery}%` } },
-            { full_name: { [Op.like]: `%${sanitizedQuery}%` } },
-          ];
-        }
-      }
-      if (category) where.document_category = category;
-      if (department) where.department = department;
-
-      if (startDate || endDate) {
-        where.generated_at = {};
-        if (startDate) where.generated_at[Op.gte] = new Date(startDate);
-        if (endDate) where.generated_at[Op.lte] = new Date(endDate);
-      }
-
-      const documents = await Document.findAndCountAll({
-        where,
-        offset: (page - 1) * limit,
-        limit: limit,
-        order: [["generated_at", "DESC"]],
-      });
-
-      res.json({
-        total: documents.count,
-        pages: Math.ceil(documents.count / limit),
-        currentPage: page,
-        documents: documents.rows,
-      });
-    } catch (error) {
-      next(error);
-    }
-  },
-);
-
-// Get Statistics (Admin)
-router.get(
-  "/stats",
-  authenticateToken,
-  requireAdmin,
-  async (req, res, next) => {
-    try {
-      const totalDocuments = await Document.count();
-      const documentsByCategory = await Document.count({
-        attributes: ["document_category"],
-        group: ["document_category"],
-        raw: true,
-      });
-      const documentsByDepartment = await Document.count({
-        attributes: ["department"],
-        group: ["department"],
-        raw: true,
-      });
-      const documentsByStatus = await Document.count({
-        attributes: ["status"],
-        group: ["status"],
-        raw: true,
-      });
-
-      res.json({
-        totalDocuments,
-        byCategory: documentsByCategory,
-        byDepartment: documentsByDepartment,
-        byStatus: documentsByStatus,
-      });
-    } catch (error) {
-      next(error);
-    }
-  },
-);
 
 module.exports = router;
