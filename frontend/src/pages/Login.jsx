@@ -1,91 +1,95 @@
-// frontend/src/pages/Login.jsx
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { useAuth } from '../context/AuthContext';
-import authService from '../services/authService';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import api from "../services/api";
 
-const Login = () => {
+export default function Login() {
   const navigate = useNavigate();
-  const { login, setAuthError } = useAuth();
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm();
-  const [apiError, setApiError] = useState(null);
+  const { login } = useAuth();
 
-  const onSubmit = async (data) => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
     try {
-      setApiError(null);
-      const response = await authService.login(data.email, data.password);
-      login(response.data.token, response.data.user);
-      navigate('/dashboard');
-    } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Login failed';
-      setApiError(errorMessage);
-      setAuthError(errorMessage);
+      setLoading(true);
+      setError(null);
+
+      const res = await api.post("/auth/login", {
+        email,
+        password,
+      });
+
+      // ✅ EXPECTED BACKEND RESPONSE
+      const { token, user } = res.data;
+
+      if (!token || !user) {
+        throw new Error("Invalid login response");
+      }
+
+      // save auth
+      login(token, user);
+
+      // redirect based on role
+      if (user.is_admin === 1) {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
+    } catch (err) {
+      console.error("LOGIN ERROR:", err);
+      setError(
+        err.response?.data?.error || "Login failed. Please try again."
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
-        <h1 className="text-3xl font-bold text-center mb-2 text-gray-800">DocNo</h1>
-        <p className="text-center text-gray-600 mb-6">Document Number Generator</p>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white p-8 rounded-lg shadow-md w-96"
+      >
+        <h2 className="text-2xl font-bold mb-6 text-center">
+          DocNo Login
+        </h2>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {apiError && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-              {apiError}
-            </div>
-          )}
+        {error && (
+          <div className="mb-4 text-red-600 text-sm">{error}</div>
+        )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input
-              type="email"
-              {...register('email', {
-                required: 'Email is required',
-                pattern: { value: /^\S+@\S+$/i, message: 'Invalid email' },
-              })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder="<your email"
-            />
-            {errors.email && <span className="text-red-500 text-sm">{errors.email.message}</span>}
-          </div>
+        <input
+          type="email"
+          placeholder="Email"
+          className="w-full border p-2 mb-4 rounded"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <input
-              type="password"
-              {...register('password', { required: 'Password is required' })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder="••••••••"
-            />
-            {errors.password && <span className="text-red-500 text-sm">{errors.password.message}</span>}
-          </div>
+        <input
+          type="password"
+          placeholder="Password"
+          className="w-full border p-2 mb-6 rounded"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition"
-          >
-            {isSubmitting ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
-
-        <p className="text-center mt-6 text-gray-600">
-          Don't have an account?{' '}
-          <Link to="/register" className="text-blue-600 hover:underline font-medium">
-            Sign up
-          </Link>
-        </p>
-
-        <p className="text-center mt-4 text-sm text-gray-500">
-          Demo credentials:<br/>
-          Email: admin@company.com<br/>
-          Password: Admin@123
-        </p>
-      </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+        >
+          {loading ? "Signing in..." : "Login"}
+        </button>
+      </form>
     </div>
   );
-};
-
-export default Login;
+}

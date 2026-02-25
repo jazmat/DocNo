@@ -1,40 +1,46 @@
-// frontend/src/services/api.js
-import axios from 'axios';
+// src/services/api.js
+import axios from "axios";
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+/*
+  IMPORTANT:
+  Vite uses import.meta.env instead of process.env
+*/
+
+const API_BASE_URL =
+    import.meta.env.VITE_API_URL || "http://localhost:7050/api";
 
 const api = axios.create({
     baseURL: API_BASE_URL,
+    headers: {
+        "Content-Type": "application/json",
+    },
 });
 
-// Add token to requests
-api.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem('authToken');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-    },
-    (error) => Promise.reject(error)
-);
+/*
+  Automatically attach JWT token
+*/
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem("token");
 
-// Handle response errors
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    return config;
+});
+
+/*
+  Handle auth errors globally
+*/
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        // Handle authentication errors (401) and authorization errors (403)
-        if (error.response?.status === 401 || error.response?.status === 403) {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('user');
-
-            // Use window.location for navigation to ensure clean state reset
-            // This is acceptable here since we want to force a complete app reload
-            // after authentication failure
-            if (window.location.pathname !== '/login') {
-                window.location.href = '/login';
-            }
+        if (error.response?.status === 401) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            window.location.href = "/login";
         }
+
         return Promise.reject(error);
     }
 );

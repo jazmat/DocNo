@@ -1,75 +1,63 @@
-// frontend/src/context/AuthContext.jsx
-import React, { createContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from "react";
+import axios from "axios";
 
-export const AuthContext = createContext();
+const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('authToken'));
+  const [token, setToken] = useState(localStorage.getItem("token"));
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  // Initialize auth state from localStorage
+  const API = "http://localhost:7050/api";
+
+  // Restore session
   useEffect(() => {
-    const storedToken = localStorage.getItem('authToken');
-    const storedUser = localStorage.getItem('user');
-    
-    if (storedToken && storedUser) {
-      try {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-      } catch (err) {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('user');
-      }
+    const storedUser = localStorage.getItem("user");
+
+    if (token && storedUser) {
+      setUser(JSON.parse(storedUser));
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     }
+
     setLoading(false);
   }, []);
 
-  const login = useCallback((token, userData) => {
-    localStorage.setItem('authToken', token);
-    localStorage.setItem('user', JSON.stringify(userData));
+  // LOGIN
+  const login = (token, user) => {
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(user));
+
+    axios.defaults.headers.common["Authorization"] =
+      `Bearer ${token}`;
+
     setToken(token);
-    setUser(userData);
-    setError(null);
-  }, []);
-
-  const logout = useCallback(() => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
-    setToken(null);
-    setUser(null);
-    setError(null);
-  }, []);
-
-  const setAuthError = useCallback((errorMessage) => {
-    setError(errorMessage);
-  }, []);
-
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
-
-  const value = {
-    user,
-    token,
-    loading,
-    error,
-    login,
-    logout,
-    setAuthError,
-    clearError,
-    isAuthenticated: !!token,
-    isAdmin: user?.is_admin || false,
+    setUser(user);
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  // LOGOUT
+  const logout = () => {
+    localStorage.clear();
+    delete axios.defaults.headers.common["Authorization"];
+
+    setUser(null);
+    setToken(null);
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        login,
+        logout,
+        isAdmin: user?.is_admin === 1,
+        isAuthenticated: !!user,
+        loading,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-export const useAuth = () => {
-  const context = React.useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-  return context;
-};
+export const useAuth = () => useContext(AuthContext);
