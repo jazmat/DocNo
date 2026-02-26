@@ -4,7 +4,10 @@ import History from "./pages/History";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/admin/Admin";
+import AdminUsers from "./pages/AdminUsers";
 import Profile from "./pages/Profile";
+import Departments from "./pages/Departments";
+import Categories from "./pages/Categories";
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user } = useAuth();
 
@@ -45,6 +48,9 @@ export default function App() {
       />
       <Route path="/history" element={<History />} />
       <Route path="/profile" element={<Profile />} />
+      <Route path="/admin/users" element={<AdminUsers />} />
+      <Route path="/admin/departments" element={<Departments />} />
+      <Route path="/admin/categories" element={<Categories />} />
     </Routes>
   );
 }

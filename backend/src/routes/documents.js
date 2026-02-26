@@ -1,6 +1,6 @@
 /**
  * File: backend/src/routes/documents.js
- * Purpose: Document generation + history
+ * Stable version – document generation + history
  */
 
 const express = require("express");
@@ -10,25 +10,6 @@ const authMiddleware = require("../../middleware/authMiddleware");
 const db = require("../config/db");
 const { sendDocumentEmail } = require("../services/emailService");
 
-const departmentMap = {
-  HR: 1,
-  Finance: 2,
-  IT: 3,
-  Marketing: 4,
-  Operations: 5,
-};
-
-const categoryMap = {
-  Report: 1,
-  Template: 2,
-  Presentation: 3,
-  Invoice: 4,
-  Contract: 5,
-  Proposal: 6,
-  Memo: 7,
-  Other: 8,
-};
-
 /* =====================================================
    GENERATE DOCUMENT
 ===================================================== */
@@ -36,22 +17,24 @@ router.post("/generate", authMiddleware, async (req, res) => {
   try {
     const user = req.user;
 
-    const {
-      document_title,
-      document_category,
-      department,
-      notes,
-    } = req.body;
+    const document_title = req.body.document_title;
+    const category_id = Number(req.body.category_id);
+    const department_id = Number(req.body.department_id);
 
-    const department_id = departmentMap[department];
-    const category_id = categoryMap[document_category];
+    if (!document_title || !category_id || !department_id) {
+      return res.status(400).json({
+        error: "Invalid department or category",
+      });
+    }
 
     const documentNumber = `DOC-${Date.now()}`;
 
     await db.execute(
-      `INSERT INTO documents
-       (title, document_number, department_id, category_id, user_id)
-       VALUES (?, ?, ?, ?, ?)`,
+      `
+      INSERT INTO documents
+      (title, document_number, department_id, category_id, user_id)
+      VALUES (?, ?, ?, ?, ?)
+      `,
       [
         document_title,
         documentNumber,
@@ -61,30 +44,30 @@ router.post("/generate", authMiddleware, async (req, res) => {
       ]
     );
 
-    await sendDocumentEmail(user.email, documentNumber)
+    console.log("✅ Document saved:", documentNumber);
+
+    // fire-and-forget email
+    sendDocumentEmail(user.email, documentNumber)
       .catch(err => console.error("EMAIL FAILURE:", err.message));
 
     res.status(201).json({
       success: true,
       documentNumber,
-      document_title,
-      document_category,
-      department,
-      notes,
     });
 
   } catch (error) {
     console.error("DOCUMENT ERROR:", error);
-    res.status(500).json({ error: "Failed to generate document" });
+    res.status(500).json({
+      error: "Failed to generate document",
+    });
   }
 });
 
 /* =====================================================
-   DOCUMENT HISTORY
+   HISTORY
 ===================================================== */
 router.get("/history", authMiddleware, async (req, res) => {
   try {
-    const user = req.user;
 
     const [rows] = await db.execute(
       `
@@ -93,23 +76,38 @@ router.get("/history", authMiddleware, async (req, res) => {
         d.document_number,
         d.title,
         d.created_at,
-        d.department_id,
-        d.category_id
+        dep.name AS department_name,
+        cat.name AS category_name
       FROM documents d
+      LEFT JOIN departments dep
+        ON dep.id = d.department_id
+      LEFT JOIN document_categories cat
+        ON cat.id = d.category_id
       WHERE d.user_id = ?
       ORDER BY d.created_at DESC
       `,
-      [user.id]
+      [req.user.id]
     );
 
+    const documents = rows.map(r => ({
+      id: r.id,
+      document_number: r.document_number,
+      title: r.title,
+      created_at: r.created_at,
+      department: r.department_name || "Unknown",
+      category: r.category_name || "Unknown",
+    }));
+    console.log("HISTORY RESULT:", documents);
     res.json({
       success: true,
-      documents: rows,
+      documents,
     });
 
   } catch (error) {
     console.error("HISTORY ERROR:", error);
-    res.status(500).json({ error: "Failed to fetch history" });
+    res.status(500).json({
+      error: "Failed to fetch history",
+    });
   }
 });
 

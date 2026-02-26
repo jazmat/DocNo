@@ -1,159 +1,77 @@
-// frontend/src/components/DocumentForm.jsx
-
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import api from '../services/api';
 
 const DocumentForm = ({ onSuccess }) => {
-    const { register, handleSubmit, watch, reset, formState: { errors } } = useForm({
-        defaultValues: {
-            document_category: 'Report',
-            department: 'HR',
-        },
-    });
+    const { register, handleSubmit, reset } = useForm();
 
-    const [preview, setPreview] = useState(null);
-    const [loading, setLoading] = useState(false);
+    const [departments, setDepartments] = useState([]);
+    const [categories, setCategories] = useState([]);
 
-    const category = watch('document_category');
-    const department = watch('department');
+    useEffect(() => {
+        const loadLookups = async () => {
+            const dep = await api.get('/lookups/departments');
+            const cat = await api.get('/lookups/categories');
 
-    /**
-     * Normalize backend response
-     * Ensures parent always receives:
-     * { documentNumber: "DOC-XXXX" }
-     */
-    const normalizeResponse = (response) => {
-        const payload = response?.data;
-
-        return {
-            documentNumber:
-                payload?.documentNumber ||
-                payload?.data?.documentNumber ||
-                payload?.result?.documentNumber ||
-                null,
-            ...payload,
+            setDepartments(dep.data);
+            setCategories(cat.data);
         };
-    };
+
+        loadLookups();
+    }, []);
 
     const onSubmit = async (data) => {
-        try {
-            setLoading(true);
-
-            const response = await api.post('/documents/generate', data);
-
-            const normalized = normalizeResponse(response);
-
-            if (!normalized.documentNumber) {
-                throw new Error("Invalid server response");
-            }
-
-            setPreview(normalized);
-            reset();
-
-            if (onSuccess) onSuccess(normalized);
-
-        } catch (error) {
-            alert('Error: ' + (error.response?.data?.error || error.message));
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handlePreview = async (data) => {
-        setPreview(data);
+        const res = await api.post('/documents/generate', data);
+        onSuccess(res.data);
+        reset();
     };
 
     return (
-        <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow">
-            <h2 className="text-2xl font-bold mb-6">Generate Document Number</h2>
+        <div className="bg-white p-6 rounded shadow">
+
+            <h2 className="text-xl font-bold mb-4">
+                Generate Document Number
+            </h2>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
-                <div>
-                    <label className="block text-sm font-medium mb-2">Document Title</label>
-                    <input
-                        type="text"
-                        {...register('document_title', {
-                            required: 'Required',
-                            maxLength: { value: 255, message: 'Max 255 characters' }
-                        })}
-                        className="w-full px-4 py-2 border rounded-lg"
-                        placeholder="Enter document title"
-                    />
-                    {errors.document_title &&
-                        <span className="text-red-500 text-sm">
-                            {errors.document_title.message}
-                        </span>}
-                </div>
+                <input
+                    {...register('document_title')}
+                    placeholder="Document Title"
+                    className="w-full border p-2 rounded"
+                />
 
-                <div className="grid grid-cols-2 gap-4">
-
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Category</label>
-                        <select
-                            {...register('document_category')}
-                            className="w-full px-4 py-2 border rounded-lg"
-                        >
-                            <option>Report</option>
-                            <option>Template</option>
-                            <option>Presentation</option>
-                            <option>Invoice</option>
-                            <option>Contract</option>
-                            <option>Proposal</option>
-                            <option>Memo</option>
-                            <option>Other</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Department</label>
-                        <select
-                            {...register('department')}
-                            className="w-full px-4 py-2 border rounded-lg"
-                        >
-                            <option>HR</option>
-                            <option>Finance</option>
-                            <option>IT</option>
-                            <option>Marketing</option>
-                            <option>Operations</option>
-                        </select>
-                    </div>
-
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium mb-2">Additional Notes</label>
-                    <textarea
-                        {...register('notes')}
-                        className="w-full px-4 py-2 border rounded-lg"
-                        rows="4"
-                        placeholder="Optional notes"
-                    />
-                </div>
-
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                {/* CATEGORY */}
+                <select
+                    {...register('category_id')}
+                    className="w-full border p-2 rounded"
                 >
-                    {loading ? 'Generating...' : 'Generate Document Number'}
+                    <option value="">Select Category</option>
+                    {categories.map(c => (
+                        <option key={c.id} value={c.id}>
+                            {c.name}
+                        </option>
+                    ))}
+                </select>
+
+                {/* DEPARTMENT */}
+                <select
+                    {...register('department_id')}
+                    className="w-full border p-2 rounded"
+                >
+                    <option value="">Select Department</option>
+                    {departments.map(d => (
+                        <option key={d.id} value={d.id}>
+                            {d.name}
+                        </option>
+                    ))}
+                </select>
+
+                <button className="bg-blue-600 text-white px-4 py-2 rounded">
+                    Generate
                 </button>
 
             </form>
-
-            {preview && (
-                <div className="mt-8 p-4 bg-gray-100 rounded-lg">
-                    <h3 className="text-lg font-bold mb-4">Preview</h3>
-                    <div className="bg-white p-4 rounded">
-                        <p><strong>Document Number:</strong> {preview.documentNumber}</p>
-                        <p><strong>Title:</strong> {preview.document_title}</p>
-                        <p><strong>Category:</strong> {preview.document_category}</p>
-                        <p><strong>Department:</strong> {preview.department}</p>
-                    </div>
-                </div>
-            )}
-
         </div>
     );
 };
