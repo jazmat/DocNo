@@ -1,95 +1,95 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import api from "../services/api";
+import { useNavigate } from "react-router-dom";
+import logo from "../assets/logo.png";
 
-export default function Login() {
-  const navigate = useNavigate();
+function Login() {
+
   const { login } = useAuth();
+  const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState("");
 
-  const handleSubmit = async (e) => {
+  const submit = async (e) => {
+
     e.preventDefault();
 
     try {
-      setLoading(true);
-      setError(null);
 
-      const res = await api.post("/auth/login", {
-        email,
-        password,
-      });
+      await login(email, password);
 
-      // ✅ EXPECTED BACKEND RESPONSE
-      const { token, user } = res.data;
+      navigate("/dashboard");
 
-      if (!token || !user) {
-        throw new Error("Invalid login response");
-      }
-
-      // save auth
-      login(token, user);
-
-      // redirect based on role
-      if (user.is_admin === 1) {
-        navigate("/admin");
-      } else {
-        navigate("/dashboard");
-      }
     } catch (err) {
-      console.error("LOGIN ERROR:", err);
-      setError(
-        err.response?.data?.error || "Login failed. Please try again."
-      );
-    } finally {
-      setLoading(false);
+
+      setError("Invalid credentials");
+
     }
+
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-8 rounded-lg shadow-md w-96"
-      >
-        <h2 className="text-2xl font-bold mb-6 text-center">
-          DocNo Login
-        </h2>
 
-        {error && (
-          <div className="mb-4 text-red-600 text-sm">{error}</div>
-        )}
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+
+      <form
+        onSubmit={submit}
+        className="bg-white p-8 rounded shadow w-96">
+        <header className="flex items-center gap-4 mb-4">
+
+          <img src={logo} alt="Company Logo" style={{ width: "60px" }} />
+
+          <h1 className="text-lg font-semibold">
+            Doc No Generator System
+          </h1>
+
+        </header>
+        <hr className="my-4" />
+        {error && <p className="text-red-500">{error}</p>}
 
         <input
-          type="email"
-          placeholder="Email"
-          className="w-full border p-2 mb-4 rounded"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
           required
+          className="w-full border p-2 mb-3"
+          placeholder="Email"
+          onChange={(e) => setEmail(e.target.value)}
         />
 
         <input
           type="password"
+          className="w-full border p-2 mb-3"
           placeholder="Password"
-          className="w-full border p-2 mb-6 rounded"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          required
         />
 
         <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
-        >
-          {loading ? "Signing in..." : "Login"}
+          className="w-full bg-blue-600 text-white py-2 rounded">
+          Login
         </button>
+        <div className="flex justify-between text-sm mt-3">
+
+          <a
+            href="/forgot-password"
+            className="text-blue-600"
+          >
+            Forgot password?
+          </a>
+
+          <p className="text-sm mt-4 text-center">
+            Don't have an account?
+            <a href="/register" className="text-blue-600 ml-1">
+              Register
+            </a>
+          </p>
+        </div>
       </form>
+
     </div>
+
   );
+
 }
+
+export default Login;

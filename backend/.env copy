@@ -1,0 +1,35 @@
+#NODE_ENV=development
+NODE_ENV=production
+DB_HOST=127.0.0.1
+DB_PORT=8889
+DB_NAME=docnogen
+DB_USER=root
+DB_PASSWORD=root
+JWT_SECRET=dev_jwt_secret_key_for_local_development_only_change_for_production_use
+JWT_EXPIRY=24h
+APP_URL=http://localhost:3000
+PORT=7050
+
+ALLOWED_ORIGINS=http://localhost:3001,http://localhost:3000
+
+# Email Configuration
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=docno@esigmatech.com
+SMTP_PASS=
+#ADMIN_EMAIL=
+
+#EMAIL_HOST=smtp.gmail.com
+#EMAIL_PORT=587
+#EMAIL_USER=zamajunk@gmail.com
+#EMAIL_PASS=tpzwqpzkmfcscicx
+
+COMPANY_DOMAIN=esigmatech.com
+#For production change FRONTEND_URL to your real domain
+#FRONTEND_URL=http://localhost:3000
+
+JWT_SECRET=your_real_secret
+JWT_RESET_SECRET=your_reset_secret
+
+FRONTEND_URL=http://localhost:3001
+

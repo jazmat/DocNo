@@ -1,41 +1,134 @@
-# DocNo - Document Number Generator
+# DocNo – Document Number Generator
 
-A full-stack application for generating unique, standardized document numbers with user authentication, audit logging, and email notifications.
+DocNo is a lightweight internal system for generating unique document reference numbers for organizations.
+
+The system ensures that every document receives a structured, sequential number based on department, category, and year.
+
+Example document number:
+
+HR-MEM-2026-0001
+
+---
 
 ## Features
 
-- **User Management**: Registration, login, profile management, password recovery
-- **Document Number Generation**: Automated generation with configurable format
-- **Email Notifications**: Confirmation emails and password reset links
-- **Audit Trail**: Complete logging of all user actions
-- **Role-Based Access**: Admin dashboard and user-specific access
-- **Real-time Preview**: Live preview of generated document numbers
+* Secure user authentication (JWT)
+* Admin approval workflow for new users
+* Department and category management
+* Transaction-safe document numbering
+* Email notifications
+* Allowed email domain restriction
+* Audit logs
+* Automated database backup
+* Role system
 
-## Tech Stack
+  * User
+  * Admin
+  * SuperAdmin
 
-### Backend
-- Node.js + Express.js
-- MySQL with Sequelize ORM
-- JWT Authentication
-- Nodemailer for email services
+---
 
-### Frontend
-- React 18
-- React Router
-- React Hook Form
-- Tailwind CSS
-- Axios
+## Technology Stack
 
-## Installation
+Frontend
 
-### Prerequisites
-- Node.js 18+
-- MySQL 8.0+
-- Docker (optional)
+* React
+* Vite
+* TailwindCSS
 
-### Setup
+Backend
 
-1. Clone the repository
-```bash
-git clone <repo-url>
-cd DocNo# DocNo
+* Node.js
+* Express.js
+* MySQL
+
+Other Components
+
+* JWT authentication
+* Nodemailer (SMTP email)
+* MySQL transaction-safe numbering
+
+---
+
+## Project Structure
+
+DocNo
+├── backend
+│   ├── config
+│   ├── middleware
+│   ├── routes
+│   ├── services
+│   ├── utils
+│   ├── migrations
+│   └── server.js
+
+├── frontend
+│   ├── src
+│   └── public
+
+├── scripts
+│   └── backup_db.sh
+
+├── backups
+
+---
+
+## Installation (Development)
+
+Backend
+
+cd backend
+npm install
+npm run dev
+
+Frontend
+
+cd frontend
+npm install
+npm run dev
+
+---
+
+## Database
+
+Run the schema:
+
+backend/migrations/001_docno_schema.sql
+
+---
+
+## Environment Variables
+
+Create `.env` in backend:
+
+PORT=7050
+
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=yourpassword
+DB_NAME=docno
+
+JWT_SECRET=your_secret
+
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=[your_email@gmail.com](mailto:your_email@gmail.com)
+SMTP_PASS=app_password
+
+---
+
+## Deployment
+
+Frontend is built using:
+
+npm run build
+
+Backend runs using:
+
+node server.js
+
+---
+
+## License
+
+Internal company software – Esigma Technologies

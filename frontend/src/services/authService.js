@@ -1,16 +1,92 @@
-// frontend/src/services/authService.js
-import api from './api';
+import api from "./api";
 
-const register = (userData) => api.post('/auth/register', userData);
-const login = (email, password) => api.post('/auth/login', { email, password });
-const logout = () => api.post('/auth/logout');
-const resetPassword = (token, password) => api.post('/auth/reset-password', { token, password });
-const forgotPassword = (email) => api.post('/auth/forgot-password', { email });
+const authService = {
 
-export default {
-    register,
-    login,
-    logout,
-    resetPassword,
-    forgotPassword,
+    /*
+    =========================
+    REGISTER USER
+    =========================
+    */
+
+    register: async (data) => {
+
+        const res = await api.post("/auth/register", data);
+
+        return res.data;
+
+    },
+
+
+    /*
+    =========================
+    LOGIN USER
+    =========================
+    */
+
+    login: async (email, password) => {
+
+        const res = await api.post("/auth/login", {
+            email,
+            password
+        });
+
+        const { token, user } = res.data;
+
+        if (token) {
+
+            localStorage.setItem("token", token);
+            localStorage.setItem("user", JSON.stringify(user));
+
+        }
+
+        return res.data;
+
+    },
+
+
+    /*
+    =========================
+    LOGOUT USER
+    =========================
+    */
+
+    logout: () => {
+
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+
+    },
+
+
+    /*
+    =========================
+    GET CURRENT USER
+    =========================
+    */
+
+    getCurrentUser: () => {
+
+        const user = localStorage.getItem("user");
+
+        if (!user) return null;
+
+        return JSON.parse(user);
+
+    },
+
+
+    /*
+    =========================
+    GET TOKEN
+    =========================
+    */
+
+    getToken: () => {
+
+        return localStorage.getItem("token");
+
+    }
+
 };
+
+export default authService;

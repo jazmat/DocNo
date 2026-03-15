@@ -1,44 +1,69 @@
-import { Link, useLocation } from "react-router-dom";
+import React from "react";
+import { NavLink } from "react-router-dom";
+
+import {
+    USER_NAVIGATION,
+    ADMIN_NAVIGATION,
+    SUPERADMIN_NAVIGATION
+} from "../constants/navigation"; 
 import { useAuth } from "../context/AuthContext";
+import logo from "../assets/logo.png";
 
-export default function Sidebar() {
-    const { user, logout } = useAuth();
-    const location = useLocation();
+function Sidebar() {
 
-    const linkClass = (path) =>
-        `block px-4 py-2 rounded-md mb-2 ${location.pathname === path
-            ? "bg-blue-600 text-white"
-            : "text-gray-700 hover:bg-gray-200"
-        }`;
+    const { user } = useAuth();
 
+    const navItems = [
+        ...USER_NAVIGATION,
+        ...(user?.is_admin ? ADMIN_NAVIGATION : []),
+        ...(user?.is_super_admin ? SUPERADMIN_NAVIGATION : [])
+    ];
     return (
-        <div className="w-64 bg-white shadow-md h-screen p-4">
-            <h2 className="text-xl font-bold mb-6">DocNo</h2>
 
-            <nav>
-                <Link to="/dashboard" className={linkClass("/dashboard")}>
-                    Dashboard
-                </Link>
+        <aside className="w-64 bg-slate-900 text-white min-h-screen flex flex-col">
 
-                {!user?.is_admin && (
-                    <Link to="/my-documents" className={linkClass("/my-documents")}>
-                        My Documents
-                    </Link>
-                )}
+            {/* LOGO SECTION */}
 
-                {user?.is_admin && (
-                    <Link to="/admin" className={linkClass("/admin")}>
-                        Admin Dashboard
-                    </Link>
-                )}
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-700">
+
+                <img
+                    src={logo}
+                    alt="DocNo Logo"
+                    title="Document Numbering System"
+                    className="h-8 w-auto"
+                />
+                <span className="text-sm ">
+                    Document Numbering System
+                </span>
+            </div>
+
+            {/* NAVIGATION */}
+
+            <nav className="p-4 space-y-2 flex-1">
+
+                {navItems.map((item) => (
+
+                    <NavLink
+                        key={item.path}
+                        to={item.path}
+                        className={({ isActive }) =>
+                            `block px-4 py-2 rounded ${isActive
+                                ? "bg-slate-700"
+                                : "hover:bg-slate-800"
+                            }`
+                        }
+                    >
+                        {item.label}
+                    </NavLink>
+
+                ))}
+
             </nav>
 
-            <button
-                onClick={logout}
-                className="mt-8 w-full bg-red-500 text-white py-2 rounded hover:bg-red-600"
-            >
-                Logout
-            </button>
-        </div>
+        </aside>
+
     );
+
 }
+
+export default Sidebar;

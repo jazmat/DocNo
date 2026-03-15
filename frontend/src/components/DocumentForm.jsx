@@ -1,79 +1,126 @@
-import React, { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import api from '../services/api';
+import React, { useState, useEffect } from "react";
+import api from "../services/api";
 
-const DocumentForm = ({ onSuccess }) => {
-    const { register, handleSubmit, reset } = useForm();
+function DocumentForm() {
+
+    const [title, setTitle] = useState("");
+    const [department, setDepartment] = useState("");
+    const [category, setCategory] = useState("");
 
     const [departments, setDepartments] = useState([]);
     const [categories, setCategories] = useState([]);
 
+    const [preview, setPreview] = useState("");
+
     useEffect(() => {
-        const loadLookups = async () => {
-            const dep = await api.get('/lookups/departments');
-            const cat = await api.get('/lookups/categories');
 
-            setDepartments(dep.data);
-            setCategories(cat.data);
-        };
+        loadDropdowns();
 
-        loadLookups();
     }, []);
+    useEffect(() => {
+        previewNumber();
+    }, [department, category]);
+    const loadDropdowns = async () => {
 
-    const onSubmit = async (data) => {
-        const res = await api.post('/documents/generate', data);
-        onSuccess(res.data);
-        reset();
+        const dept = await api.get("/admin/departments");
+        const cat = await api.get("/admin/categories");
+
+        setDepartments(dept.data || []);
+        setCategories(cat.data || []);
+
+    };
+
+    const previewNumber = async () => {
+
+        if (!department || !category) return;
+
+        const res = await api.get("/documents/preview", {
+            params: {
+                department_id: department,
+                category_id: category
+            }
+        });
+
+        setPreview(res.data.preview);
+
+    };
+
+    const generate = async () => {
+
+        const res = await api.post("/documents/generate", {
+            title,
+            department_id: department,
+            category_id: category
+        });
+
+        alert("Generated: " + res.data.document_number);
+
     };
 
     return (
-        <div className="bg-white p-6 rounded shadow">
 
-            <h2 className="text-xl font-bold mb-4">
-                Generate Document Number
-            </h2>
+        <div className="max-w-xl space-y-4">
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <input
+                type="text"
+                placeholder="Document Title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full border p-2 rounded"
+            />
 
-                <input
-                    {...register('document_title')}
-                    placeholder="Document Title"
-                    className="w-full border p-2 rounded"
-                />
+            <select
+                onChange={(e) => setDepartment(e.target.value)}
+                className="w-full border p-2 rounded"
+            >
+                <option>Select Department</option>
 
-                {/* CATEGORY */}
-                <select
-                    {...register('category_id')}
-                    className="w-full border p-2 rounded"
-                >
-                    <option value="">Select Category</option>
-                    {categories.map(c => (
-                        <option key={c.id} value={c.id}>
-                            {c.name}
-                        </option>
-                    ))}
-                </select>
+                {departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                        {d.name}
+                    </option>
+                ))}
 
-                {/* DEPARTMENT */}
-                <select
-                    {...register('department_id')}
-                    className="w-full border p-2 rounded"
-                >
-                    <option value="">Select Department</option>
-                    {departments.map(d => (
-                        <option key={d.id} value={d.id}>
-                            {d.name}
-                        </option>
-                    ))}
-                </select>
+            </select>
 
-                <button className="bg-blue-600 text-white px-4 py-2 rounded">
-                    Generate
-                </button>
+            <select
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full border p-2 rounded"
+            >
+                <option>Select Category</option>
 
-            </form>
+                {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                        {c.name}
+                    </option>
+                ))}
+
+            </select>
+
+{/*             <button
+                onClick={previewNumber}
+                className="bg-green-300 text-blue-600 px-4 py-2 rounded"
+            >
+                Preview
+            </button>
+ */} 
+            {preview && (
+                <div className="p-3 bg-green-100 rounded">
+                    <b>Preview:</b> {preview}
+                </div>
+            )} 
+
+            <button
+                onClick={generate}
+                className="bg-blue-600 text-white px-4 py-2 rounded"
+            >
+                Generate
+            </button>
+
         </div>
+
     );
-};
+
+}
 
 export default DocumentForm;

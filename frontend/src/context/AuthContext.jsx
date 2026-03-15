@@ -1,63 +1,88 @@
-import { createContext, useContext, useState, useEffect } from "react";
-import axios from "axios";
+import { createContext, useContext, useState } from "react";
 
 const AuthContext = createContext();
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem("token"));
-  const [loading, setLoading] = useState(true);
+function decodeToken(token) {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload;
+  } catch {
+    return null;
+  }
+}
 
-  const API = "http://localhost:7050/api";
+export function AuthProvider({ children }) {
 
-  // Restore session
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
+  const token = localStorage.getItem("token");
 
-    if (token && storedUser) {
-      setUser(JSON.parse(storedUser));
-      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+  const [user, setUser] = useState(() => {
+
+    if (!token) return null;
+
+    const payload = decodeToken(token);
+
+    if (!payload) return null;
+
+    return {
+      token,
+      id: payload.id,
+      email: payload.email,
+      full_name: payload.full_name,
+      is_admin: payload.is_admin,
+      is_super_admin: payload.is_super_admin
+    };
+
+  });
+
+  const login = async (email, password) => {
+
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+
+    if (!data.token) {
+      throw new Error("Login failed");
     }
 
-    setLoading(false);
-  }, []);
+    localStorage.setItem("token", data.token);
 
-  // LOGIN
-  const login = (token, user) => {
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
+    const payload = decodeToken(data.token);
 
-    axios.defaults.headers.common["Authorization"] =
-      `Bearer ${token}`;
+    setUser({
+      token: data.token,
+      id: payload.id,
+      email: payload.email,
+      full_name: payload.full_name,
+      is_admin: payload.is_admin,
+      is_super_admin: payload.is_super_admin
+    });
 
-    setToken(token);
-    setUser(user);
   };
 
-  // LOGOUT
   const logout = () => {
-    localStorage.clear();
-    delete axios.defaults.headers.common["Authorization"];
+
+    localStorage.removeItem("token");
 
     setUser(null);
-    setToken(null);
+
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        token,
-        login,
-        logout,
-        isAdmin: user?.is_admin === 1,
-        isAuthenticated: !!user,
-        loading,
-      }}
-    >
+    <AuthContext.Provider value={{ user, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
-};
 
-export const useAuth = () => useContext(AuthContext);
+}
+
+export function useAuth() {
+
+  return useContext(AuthContext);
+
+}

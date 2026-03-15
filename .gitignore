@@ -1,13 +1,54 @@
+# ======================
+# Node
+# ======================
 node_modules/
+npm-debug.log*
+package-lock.json
+
+# ======================
+# Environment
+# ======================
 .env
-.env.local
-.DS_Store
-dist/
-build/
-coverage/
+.env.*
+backend/.env
+frontend/.env
+
+# ======================
+# Logs
+# ======================
 logs/
 *.log
+
+# ======================
+# Backups
+# ======================
+backups/
+
+# ======================
+# Development junk
+# ======================
+.DS_Store
+Thumbs.db
+
+# ======================
+# Build artifacts
+# ======================
+frontend/dist/
+backend/dist/
+
+# ======================
+# Personal folder
+# ======================
+extra/
+Docs/
+
+# ======================
+# Editor
+# ======================
 .vscode/
 .idea/
-*.swp
-*.swo
+
+# ======================
+# Docs binaries
+# ======================
+*.zip
