@@ -1,0 +1,73 @@
+# ======================
+#  Files
+# ======================
+.env
+.env.*
+backend/.env*
+backend/.env copy
+backend/.env_local
+backend/.env_production
+
+frontend/.env*
+id_rsa
+id_rsa_ppk
+# ======================
+# Node
+# ======================
+node_modules/
+npm-debug.log*
+package-lock.json
+yarn-error.log
+# BUILD
+dist/
+build/
+# ======================
+# Development Junk
+# ======================
+.DS_Store
+Thumbs.db
+
+# ======================
+# Logs
+# ======================
+logs/
+*.log
+
+# TEMP
+tmp/
+temp/
+
+# IDE
+.vscode/
+.idea/
+
+# OPTIONAL scripts if sensitive
+scripts/*.sh
+# ======================
+# Build artifacts
+# ======================
+frontend/dist/
+backend/dist/
+# ======================
+# Personal folder
+# ======================
+backups/
+extra/
+Docs/
+# ======================
+# Editor
+# ======================
+.vscode/
+.idea/
+
+# ======================
+# Docs binaries
+# ======================
+*.zip
+# OS
+.DS_Store
+
+
+
+
+id_rsa.ppk
