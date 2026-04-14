@@ -25,7 +25,7 @@ const Register = () => {
 
       const res = await api.get("/admin/departments");
 
-      console.log("Departments API response:", res.data);
+      //console.log("Departments API response:", res.data);
 
       setDepartments(res.data);
 
@@ -38,23 +38,28 @@ const Register = () => {
   };
 
   const handleSubmit = async (e) => {
-
     e.preventDefault();
 
     try {
+      // 🔥 find selected department name
+      const selectedDept = departments.find(
+        (d) => d.id === Number(form.department_id)
+      );
 
-      await api.post("/auth/register-request", form);
+      const payload = {
+        ...form,
+        department: selectedDept?.name || "N/A", // ✅ ADD THIS
+      };
+
+      await api.post("/auth/register-request", payload);
 
       alert("Registration request submitted. Await admin approval.");
 
       navigate("/register-submitted");
 
     } catch (err) {
-
       alert(err.response?.data?.error || "Registration failed");
-
     }
-
   };
 
   return (

@@ -34,18 +34,16 @@ function DocumentStats() {
     }
 
     return (
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
             {/* DOCUMENTS */}
-
+<div className="col-span-3" align="center" style={{fontSize: "20px"}}> System Statistics</div>
             <div className="bg-white rounded-lg shadow border-l-4 border-blue-500 p-6 hover:shadow-lg transition">
-
                 <div className="flex items-center justify-between">
 
                     <div>
                         <p className="text-sm text-gray-500">
-                            Documents Generated
+                            Total Nos Generated
                         </p>
 
                         <p className="text-3xl font-bold mt-1">

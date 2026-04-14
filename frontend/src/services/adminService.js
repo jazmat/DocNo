@@ -7,27 +7,18 @@ const adminService = {
     ========================= */
 
     getDepartments: async () => {
-
         const res = await api.get("/admin/departments");
-
         return res.data;
-
     },
 
     createDepartment: async (data) => {
-
         const res = await api.post("/admin/departments", data);
-
         return res.data;
-
     },
 
     updateDepartment: async (id, data) => {
-
         const res = await api.put(`/admin/departments/${id}`, data);
-
         return res.data;
-
     },
 
 
@@ -36,27 +27,18 @@ const adminService = {
     ========================= */
 
     getCategories: async () => {
-
         const res = await api.get("/admin/categories");
-
         return res.data;
-
     },
 
     createCategory: async (data) => {
-
         const res = await api.post("/admin/categories", data);
-
         return res.data;
-
     },
 
     updateCategory: async (id, data) => {
-
         const res = await api.put(`/admin/categories/${id}`, data);
-
         return res.data;
-
     },
 
 
@@ -65,61 +47,45 @@ const adminService = {
     ========================= */
 
     getPendingUsers: async () => {
-
         const res = await api.get("/adminUsers/pending");
-
         return res.data;
-
     },
 
     approveUser: async (id) => {
-
         const res = await api.post(`/adminUsers/approve/${id}`);
-
         return res.data;
-
     },
 
     rejectUser: async (id) => {
-
         const res = await api.post(`/adminUsers/reject/${id}`);
-
         return res.data;
-
     },
 
 
     /* =========================
-       AUDIT LOGS
+       AUDIT LOGS (UPDATED)
     ========================= */
 
-    getAuditLogs: async () => {
+    /* =========================
+       AUDIT LOGS (UPDATED)
+    ========================= */
 
-        const res = await api.get("/admin/audit");
-
+    getAuditLogs: async (params) => {
+        const res = await api.get("/admin/audit", { params });
         return res.data;
-
     },
-
-
     /* =========================
        SEQUENCE MONITOR
     ========================= */
 
     getSequences: async () => {
-
         const res = await api.get("/admin/sequences");
-
         return res.data;
-
     },
 
     repairSequence: async (data) => {
-
         const res = await api.post("/admin/sequences/repair", data);
-
         return res.data;
-
     }
 
 };

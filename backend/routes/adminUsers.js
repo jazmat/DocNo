@@ -165,11 +165,11 @@ router.post("/approve/:id", authMiddleware, async (req, res) => {
                 token
             });
 
-            console.log("✅ Approval email sent");
+            //console.log("✅ Approval email sent");
 
         } catch (emailErr) {
 
-            console.error("❌ Approval email failed:", emailErr);
+            //console.error("❌ Approval email failed:", emailErr);
 
         }
 

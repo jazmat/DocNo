@@ -1,352 +1,209 @@
+const requireAdmin = require("../middleware/requireAdmin");
 const express = require("express");
 const router = express.Router();
-const pool = require("../config/db");
 const authMiddleware = require("../middleware/authMiddleware");
 const db = require("../config/db");
+const pool = require("../config/db");
+
 /* =========================
-   PUBLIC: DEPARTMENTS LIST
-   Used by registration page
+   PENDING USERS
 ========================= */
+router.get("/pending-users", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await db.query("SELECT * FROM pending_users");
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
+/* =========================
+   APPROVE USER
+========================= */
+router.post("/approve-user/:id", authMiddleware, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const [user] = await db.query(
+      "SELECT * FROM pending_users WHERE id = ?",
+      [id]
+    );
+
+    if (!user.length) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const u = user[0];
+
+    await db.query(
+      "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
+      [u.name, u.email, u.password]
+    );
+
+    await db.query("DELETE FROM pending_users WHERE id = ?", [id]);
+
+    res.json({ message: "User approved" });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* =========================
+   USERS LIST
+========================= */
+router.get("/users", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await db.query("SELECT id, name, email FROM users");
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* =========================
+   DEPARTMENTS
+========================= */
 router.get("/departments", async (req, res) => {
-
-    try {
-
-        const [rows] = await pool.execute(`
-      SELECT
-        id,
-        name,
-        prefix,
-        sequence_length,
-        year_digits,
-        year_digits,
-        is_active
+  try {
+    const [rows] = await pool.execute(`
+      SELECT id, name, prefix, sequence_length, year_digits, is_active
       FROM departments
       ORDER BY name
     `);
-
-        res.json(rows);
-
-    } catch (err) {
-
-        console.error("Departments load error:", err);
-
-        res.status(500).json({
-            error: "Failed to load departments"
-        });
-
-    }
-
+    res.json(rows);
+  } catch (err) {
+    console.error("Departments load error:", err);
+    res.status(500).json({ error: "Failed to load departments" });
+  }
 });
-/* =========================
-   CREATE DEPARTMENT
-========================= */
 
 router.post("/departments", authMiddleware, async (req, res) => {
-
   try {
-
-    const {
-      name,
-      prefix,
-    } = req.body;
-
-    if (!name || !prefix) {
-      return res.status(400).json({
-        error: "Name and prefix required"
-      });
-    }
-
-    await pool.execute(`
-      INSERT INTO departments
-      (name, prefix)
-      VALUES (?, ?)
-    `,
-      [
-        name,
-        prefix,
-      ]);
-
-    res.json({ success: true });
-
-  } catch (err) {
-
-    console.error("Create department error:", err);
-
-    res.status(500).json({
-      error: "Failed to create department"
-    });
-
-  }
-
-});
-/* =========================
-   UPDATE DEPARTMENT
-========================= */
-
-router.put("/departments/:id", authMiddleware, async (req, res) => {
-
-  try {
-
-    const id = req.params.id;
-
-    const {
-      name,
-      prefix,
-      sequence_length,
-      yearly_reset,
-      is_active
-    } = req.body;
-
-    await pool.execute(`
-      UPDATE departments
-      SET
-        name=?,
-        prefix=?,
-        sequence_length=?,
-        yearly_reset=?,
-        is_active=?
-      WHERE id=?
-    `,
-      [
-        name,
-        prefix,
-        sequence_length,
-        yearly_reset ? 1 : 0,
-        is_active ? 1 : 0,
-        id
-      ]);
-
-    res.json({ success: true });
-
-  } catch (err) {
-
-    console.error("Department update error:", err);
-
-    res.status(500).json({
-      error: "Failed to update department"
-    });
-
-  }
-
-});
-/* =========================
-   PUBLIC: CATEGORIES LIST
-   Used by registration page
-========================= */
-router.get("/categories", authMiddleware, async (req, res) => {
-
-  try {
-
-    const [rows] = await pool.execute(`
-      SELECT
-        id,
-        name,
-        prefix,
-        is_active
-      FROM categories
-      ORDER BY name
-    `);
-
-    res.json(rows);
-
-  } catch (err) {
-
-    console.error("Categories load error:", err);
-
-    res.status(500).json({
-      error: "Failed to load categories"
-    });
-
-  }
-
-});
-/* =========================
-   CREATE CATEGORY
-========================= */
-
-router.post("/categories", authMiddleware, async (req, res) => {
-
-  try {
-
     const { name, prefix } = req.body;
 
     if (!name || !prefix) {
-      return res.status(400).json({
-        error: "Name and prefix required"
-      });
+      return res.status(400).json({ error: "Name and prefix required" });
     }
 
-    await pool.execute(`
-      INSERT INTO categories
-      (name, prefix)
-      VALUES (?, ?)
-    `,
-      [
-        name,
-        prefix
-      ]);
+    await pool.execute(
+      `INSERT INTO departments (name, prefix) VALUES (?, ?)`,
+      [name, prefix]
+    );
 
     res.json({ success: true });
-
   } catch (err) {
-
-    console.error("Create category error:", err);
-
-    res.status(500).json({
-      error: "Failed to create category"
-    });
-
+    console.error("Create department error:", err);
+    res.status(500).json({ error: "Failed to create department" });
   }
-
 });
+
 /* =========================
-   UPDATE CATEGORY
+   CATEGORIES
 ========================= */
-
-router.put("/categories/:id", authMiddleware, async (req, res) => {
-
+router.get("/categories", authMiddleware, async (req, res) => {
   try {
-
-    const id = req.params.id;
-
-    const {
-      name,
-      prefix,
-      is_active
-    } = req.body;
-
-    await pool.execute(`
-      UPDATE categories
-      SET
-        name=?,
-        prefix=?,
-        is_active=?
-      WHERE id=?
-    `,
-      [
-        name,
-        prefix,
-        is_active ? 1 : 0,
-        id
-      ]);
-
-    res.json({ success: true });
-
-  } catch (err) {
-
-    console.error("Category update error:", err);
-
-    res.status(500).json({
-      error: "Failed to update category"
-    });
-
-  }
-
-});
-/* =========================
-   SEQUENCE DASHBOARD
-========================= 
-
-router.get("/sequences", authMiddleware, async (req, res) => {
-
-    try {
-
-        const [rows] = await pool.execute(`
-      SELECT
-        d.name AS department,
-        ns.year,
-        ns.current_sequence
-      FROM numbering_sequences ns
-      JOIN departments d
-        ON ns.department_id = d.id
-      ORDER BY d.name
+    const [rows] = await pool.execute(`
+      SELECT id, name, prefix, is_active
+      FROM categories
+      ORDER BY name
     `);
-
-        res.json(rows);
-
-    } catch (err) {
-
-        console.error("Sequence dashboard error:", err);
-
-        res.status(500).json({
-            error: "Failed to load sequences"
-        });
-
-    }
-
+    res.json(rows);
+  } catch (err) {
+    console.error("Categories load error:", err);
+    res.status(500).json({ error: "Failed to load categories" });
+  }
 });
-*/
 
 /* =========================
-   AUDIT LOG VIEWER
+   AUDIT LOG VIEWER (FIXED)
 ========================= */
-
 router.get("/audit", authMiddleware, async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      search = "",
+      action = "",
+      startDate,
+      endDate,
+    } = req.query;
 
-    try {
-
-        const [rows] = await pool.execute(`
-      SELECT
-        a.id,
-        u.full_name,
-        a.action,
-        a.entity_type,
-        a.entity_id,
-        a.details,
-        a.created_at
+    let query = `
+      SELECT a.*, u.full_name
       FROM audit_logs a
-      LEFT JOIN users u
-        ON a.user_id = u.id
-      ORDER BY a.created_at DESC
-      LIMIT 200
-    `);
+      LEFT JOIN users u ON a.user_id = u.id
+      WHERE 1=1
+    `;
 
-        res.json(rows);
+    const params = [];
 
-    } catch (err) {
-
-        console.error("Audit log error:", err);
-
-        res.status(500).json({
-            error: "Failed to load audit logs"
-        });
-
+    // 🔍 Search
+    if (search) {
+      query += ` AND (a.details LIKE ? OR a.action LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`);
     }
 
+    // 🎯 Action
+    if (action) {
+      query += ` AND a.action = ?`;
+      params.push(action);
+    }
+
+    // ✅ FIXED DATE FILTER (IMPORTANT)
+
+    let conditions = [];
+    let values = [];
+
+    // ✅ PURE DATE COMPARISON (FINAL FIX)
+    // ✅ APPLY DATE FILTER DIRECTLY
+    if (startDate) {
+      query += ` AND DATE(a.created_at) >= ?`;
+      params.push(startDate);
+    }
+
+    if (endDate) {
+      query += ` AND DATE(a.created_at) <= ?`;
+      params.push(endDate);
+    }
+    
+    query += ` ORDER BY a.created_at DESC LIMIT ? OFFSET ?`;
+    params.push(Number(limit), (Number(page) - 1) * Number(limit));
+    const [rows] = await db.query(query, params);
+
+    res.json(rows);
+    //console.log("QUERY:", query);
+    //console.log("PARAMS:", params);
+  } catch (err) {
+    console.error("AUDIT FETCH ERROR:", err);
+    res.status(500).json({ error: "Failed to fetch audit logs" });
+  }
+
 });
+
+/* =========================
+   DASHBOARD STATS
+========================= */
 router.get("/dashboard-stats", authMiddleware, async (req, res) => {
-
   try {
-
-    const [[documents]] = await db.execute(
-      "SELECT COUNT(*) as total FROM documents"
-    );
-
-    const [[users]] = await db.execute(
-      "SELECT COUNT(*) as total FROM users WHERE is_active = 1"
-    );
-
-    const [[pending]] = await db.execute(
-      "SELECT COUNT(*) as total FROM pending_users WHERE status='pending'"
-    );
+    const [[documents]] = await db.execute("SELECT COUNT(*) as total FROM documents");
+    const [[pending]] = await db.execute("SELECT COUNT(*) as total FROM pending_users WHERE status='pending'");
+    const [[departments]] = await db.execute("SELECT COUNT(*) as total FROM departments");
+    const [[categories]] = await db.execute("SELECT COUNT(*) as total FROM categories");
+    const [[users]] = await db.execute("SELECT COUNT(*) as total FROM users WHERE is_active = 1");
 
     res.json({
       documents: documents.total,
-      users: users.total,
-      pending: pending.total
+      pending: pending.total,
+      departments: departments.total,
+      categories: categories.total,
+      users: users.total
     });
 
   } catch (err) {
-
     console.error("Dashboard stats error:", err);
-
-    res.status(500).json({
-      error: "Failed to load dashboard stats"
-    });
-
+    res.status(500).json({ error: "Failed to load dashboard stats" });
   }
-
 });
 
 module.exports = router;

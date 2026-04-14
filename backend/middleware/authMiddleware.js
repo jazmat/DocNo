@@ -5,7 +5,8 @@
  */
 
 const jwt = require("jsonwebtoken");
-
+//console.log("JWT SECRET:", process.env.JWT_SECRET);
+//console.log("JWT SECRET (LOGIN):", process.env.JWT_SECRET);
 /**
  * Middleware to verify JWT token
  * Expected Header:

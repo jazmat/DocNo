@@ -108,7 +108,14 @@ router.post(
 router.get("/me", authMiddleware, async (req, res) => {
 
     const [rows] = await db.execute(
-        `SELECT u.id, u.email, u.full_name, u.department_id,d.name
+        `SELECT 
+        u.id, 
+        u.email, 
+        u.full_name, 
+        u.department_id,
+        u.is_admin,              -- ✅ ADD
+        u.is_super_admin,        -- ✅ ADD
+        d.name
      FROM users u join departments d on u.department_id = d.id
      WHERE u.id = ?`,
         [req.user.id]

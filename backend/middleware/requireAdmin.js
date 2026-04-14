@@ -1,31 +1,17 @@
-// backend/middleware/requireAdmin.js
-
-const requireAdmin = (req, res, next) => {
-
-    try {
-
-        if (!req.user) {
-            return res.status(401).json({
-                error: "Authentication required"
-            });
-        }
-
-        if (!req.user.is_admin) {
-            return res.status(403).json({
-                error: "Admin privileges required"
-            });
-        }
-
-        next();
-
-    } catch (error) {
-
-        console.error("Admin authorization error:", error);
-
-        res.status(500).json({
-            error: "Authorization failure"
-        });
+module.exports = (req, res, next) => {
+  try {
+    // Ensure user exists (set by auth middleware)
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
     }
-};
 
-module.exports = requireAdmin;
+    // Check admin flag
+    if (req.user.is_admin !== 1) {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+
+    next();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

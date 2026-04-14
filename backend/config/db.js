@@ -1,21 +1,25 @@
-/**
- * File: backend/src/config/db.js
- * Purpose: MySQL connection pool (MAMP compatible)
- */
-
 const mysql = require("mysql2/promise");
 
 const pool = mysql.createPool({
-    host: process.env.DB_HOST || "localhost",
-    port: process.env.DB_PORT || 3306, // ✅ MAMP MySQL port is 8889
-    user: process.env.DB_USER || "root",
-    password: process.env.DB_PASSWORD || "root",
-    database: process.env.DB_NAME || "docnogen",
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
+    timezone: "Z",
+    decimalNumbers: true,
 });
 
-console.log("✅ MySQL pool configured (MAMP)");
+pool.getConnection()
+    .then(conn => {
+        console.log("✅ DB Connected");
+        conn.release();
+    })
+    .catch(err => {
+        console.error("❌ DB Connection Failed:", err.message);
+    });
 
 module.exports = pool;

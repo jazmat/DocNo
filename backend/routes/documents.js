@@ -1,3 +1,4 @@
+const { logAudit } = require("../utils/auditLogger");
 const express = require("express");
 const router = express.Router();
 
@@ -7,7 +8,6 @@ const authMiddleware = require("../middleware/authMiddleware");
 
 const generateDocumentNumber = require("../services/numberGenerator");
 const { sendDocumentEmail } = require("../services/emailService");
-const logAudit = require("../services/auditService");
 router.get("/preview", authMiddleware, async (req, res) => {
 
   try {
@@ -100,22 +100,31 @@ router.post("/generate", authMiddleware, async (req, res) => {
       department_id,
       category_id
     );
-    const year = new Date().getFullYear();
-    await db.execute(
-      `
-INSERT INTO documents
-(title, document_number, department_id, category_id, year, user_id)
-VALUES (?, ?, ?, ?, ?,?)
-`,
+
+    // ✅ INSERT DOCUMENT
+    const [result] = await db.execute(
+      `INSERT INTO documents
+        (title, document_number, department_id, category_id, user_id)
+        VALUES (?, ?, ?, ?, ?)`,
       [
         title,
         documentNumber,
         department_id,
         category_id,
-        year,
         userId
       ]
     );
+
+    const newDocumentId = result.insertId; // ✅ IMPORTANT
+
+    // ✅ NEW STRUCTURED AUDIT LOG
+    await logAudit({
+      user_id: userId,
+      action: "GENERATE_DOCUMENT",
+      entity_type: "DOCUMENT",
+      entity_id: newDocumentId,
+      details: documentNumber
+    });
 
     res.json({
       document_number: documentNumber
@@ -133,10 +142,71 @@ VALUES (?, ?, ?, ?, ?,?)
 
 });
 
-
 /* =====================================================
    DOCUMENT HISTORY
 ===================================================== */
+router.get("/history", authMiddleware, async (req, res) => {
+//console.log("USER:", req.user);
+  try {
+
+let query = "";
+let params = [];
+
+// ✅ SUPER ADMIN → ALL DATA
+if (req.user.is_super_admin == 1) {
+
+  query = "SELECT * FROM documents ORDER BY created_at DESC";
+
+}
+
+// ✅ ADMIN → ALL DATA IN THEIR DEPARTMENT
+else if (req.user.is_admin == 1) {
+
+query = `
+  SELECT d.*
+  FROM documents d
+  JOIN users u ON d.user_id = u.id
+  WHERE u.department_id = ?
+  ORDER BY d.created_at DESC
+`;
+params = [req.user.department_id];
+
+}
+
+// ✅ USER → ONLY OWN DATA
+else {
+query = `
+  SELECT d.*
+  FROM documents d
+  JOIN users u ON d.user_id = u.id
+  WHERE u.id = ?
+  ORDER BY d.created_at DESC
+`;
+params = [req.user.id];
+
+}
+//  query = "SELECT * FROM documents WHERE created_by = ? ORDER BY created_at DESC";
+//  params = [req.user.id];
+
+//console.log("PARAMS:", params);
+const [rows] = await db.execute(query, params);
+
+    res.json(rows);
+
+  } 
+  catch (err) {
+
+  console.error("History error FULL:", err);
+
+  res.status(500).json({
+    error: err.message   // 👈 IMPORTANT
+  });
+
+}
+
+});
+
+
 
 router.get("/history", authMiddleware, async (req, res) => {
   try {
@@ -146,7 +216,7 @@ router.get("/history", authMiddleware, async (req, res) => {
       `
       SELECT id, title, document_number, created_at
       FROM documents
-      WHERE user_id = ?
+      WHERE userId = ?
       ORDER BY created_at DESC
       `,
       [userId]

@@ -33,7 +33,7 @@ function Sidebar() {
                     className="h-8 w-auto"
                 />
                 <span className="text-sm ">
-                    Document Numbering System
+                    Document Number Generator
                 </span>
             </div>
 
@@ -44,6 +44,7 @@ function Sidebar() {
                 {navItems.map((item) => (
 
                     <NavLink
+                    
                         key={item.path}
                         to={item.path}
                         className={({ isActive }) =>

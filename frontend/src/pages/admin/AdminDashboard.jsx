@@ -1,18 +1,16 @@
+//console.log("API_BASE:", import.meta.env.VITE_API_BASE_URL);
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
-
-const API_BASE = "http://localhost:7050";
-
+import api from "../../services/api";
 const AdminDashboard = () => {
 
     const navigate = useNavigate();
 
     const [stats, setStats] = useState({
         documents: 0,
-        pendingUsers: 0,
+        pending: 0,
         departments: 0,
-        categories: 0
+        categories: 0,
     });
 
     const [loading, setLoading] = useState(true);
@@ -25,16 +23,14 @@ const AdminDashboard = () => {
 
         try {
 
-            const token = localStorage.getItem("token");
+            const res = await api.get("/admin/dashboard-stats");
 
-            const res = await axios.get(`${API_BASE}/api/adminUsers/stats`, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
+            setStats({
+                documents: res.data.documents,
+                pending: res.data.pending,
+                departments: res.data.departments,
+                categories: res.data.categories,
             });
-
-            setStats(res.data);
-
         } catch (error) {
 
             console.error("Failed to load admin statistics", error);
@@ -90,10 +86,9 @@ const AdminDashboard = () => {
                     value={stats.documents}
                     color="bg-blue-500"
                 />
-
                 <StatCard
                     title="Pending Users"
-                    value={stats.pendingUsers}
+                    value={stats.pending}
                     color="bg-yellow-500"
                 />
 

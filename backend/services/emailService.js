@@ -1,5 +1,5 @@
 const nodemailer = require("nodemailer");
-console.log("SMTP_HOST:", process.env.SMTP_HOST);
+//console.log("SMTP_HOST:", process.env.SMTP_HOST);
 /* -----------------------------
    EMAIL TRANSPORT
 ------------------------------ */
@@ -19,11 +19,11 @@ async function safeSendEmail(fn, data, label) {
 
     await fn(data);
 
-    console.log(`📧 ${label} email sent`);
+    //console.log(`📧 ${label} email sent`);
 
   } catch (err) {
 
-    console.error(`❌ ${label} email failed:`, err.message);
+    //console.error(`❌ ${label} email failed:`, err.message);
 
   }
 
@@ -37,57 +37,78 @@ async function sendEmail({ to, subject, html }) {
   if (!to) {
     throw new Error("Email recipient missing");
   }
-
+  try {
   await transporter.sendMail({
     from: `"DocNo System" <${process.env.SMTP_USER}>`,
     to,
     subject,
     html
   });
-
+    console.log("📧 Email sent to:", to);
+  } catch (err) {
+    console.error("❌ Email send failed:", to,err.message);
+  }
 }
 /* -----------------------------
-   REGISTRATION REQUEST EMAIL-TO ADMINSTRATOR
+   REGISTRATION REQUEST EMAIL-TO ADMINISTRATOR
 ------------------------------ */
 async function sendRegistrationRequestEmail(data) {
 
-  const { adminEmail, full_name, email, department, requested_role } = data;
+  const {
+    adminEmail,
+    full_name,
+    email,
+    department,
+    requested_role
+  } = data;
 
+  const safeDepartment = (department || "N/A").toUpperCase();
+  const safeRole = (requested_role || "USER").toUpperCase();
+  const link = `${process.env.APP_URL}/login`;
   await sendEmail({
     to: adminEmail,
     subject: "New Registration Request",
     html: `
-      <h3>New User Registration Request</h3>
-      <p><h3>User Details:</h3></p>
-      <p><b>Name:</b> ${full_name}</p>
-      <p><b>Email:</b> ${email}</p>
-      <p><b>Department:</b> ${department.toUpperCase()}</p>
-      <p><b>Requested Role:</b> ${requested_role.toUpperCase()}</p>
+      <h3>The following new user has requested for registration</h3>
+      <p><b>Name:</b> ${full_name || "N/A"}</p>
+      <p><b>Email:</b> ${email || "N/A"}</p>
+      <p><b>Department:</b> ${safeDepartment}</p>
+      <p><b>Requested Role:</b> ${safeRole}</p>
+      <p>Click the link below to login and approve or reject the registration:</p>
+      <a href="${link}">Login to Approve/Reject Registration</a>
     `
   });
 
 }
 /* -----------------------------
-REGISTRATION CONFIRMATION EMAIL-TO REQUESTER
+   REGISTRATION CONFIRMATION EMAIL (TO USER)
 ------------------------------ */
 async function sendRegistrationConfirmationEmail(data) {
 
-  const { email, full_name, department } = data;
+  const {
+    full_name,
+    email,
+    department,
+    requested_role
+  } = data;
+
+  const safeDepartment = (department || "N/A").toUpperCase();
+  const safeRole = (requested_role || "USER").toUpperCase();
 
   await sendEmail({
     to: email,
-    subject: "Registration Request Received",
+    subject: "Registration Request Submitted",
     html: `
-      <p>Dear ${full_name},</p>
+      <h3>Registration Request Received</h3>
 
-      <p>Your registration request for <b>${department.toUpperCase()} department</b> has been received.</p>
+      <p>Dear ${full_name || "User"},</p>
 
-      <p>An administrator will review your request shortly.</p>
+      <p>Your registration request has been submitted successfully.</p>
 
-      <p>You will receive another email once approved.</p>
+      <p><b>Department:</b> ${safeDepartment}</p>
+      <p><b>Requested Role:</b> ${safeRole}</p>
 
-      <br>
-      <p>DocNo System</p>
+      <p>Our administrator is reviewing your request and you shall be notified about the decision.</p>
     `
   });
 
@@ -100,7 +121,7 @@ async function sendRegistrationApprovedEmail(data) {
 
   const { email, full_name, token } = data;
 
-  const link = `${process.env.FRONTEND_URL}/set-password?token=${token}`;
+  const link = `${process.env.APP_URL}/set-password?token=${token}`;
 
   await sendEmail({
     to: email,

@@ -1,88 +1,80 @@
-import { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
+import api from "../services/api";
 
 const AuthContext = createContext();
 
-function decodeToken(token) {
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload;
-  } catch {
-    return null;
-  }
-}
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-export function AuthProvider({ children }) {
+  // 🔥 Restore user on refresh
+  useEffect(() => {
+    const fetchUser = async () => {
+      const token = localStorage.getItem("token");
 
-  const token = localStorage.getItem("token");
+      if (!token) {
+        setLoading(false);
+        return;
+      }
 
-  const [user, setUser] = useState(() => {
-
-    if (!token) return null;
-
-    const payload = decodeToken(token);
-
-    if (!payload) return null;
-
-    return {
-      token,
-      id: payload.id,
-      email: payload.email,
-      full_name: payload.full_name,
-      is_admin: payload.is_admin,
-      is_super_admin: payload.is_super_admin
+      try {
+        const res = await api.get("/users/me");
+        setUser(res.data);
+      } catch (err) {
+        console.error("Auth restore failed");
+        localStorage.removeItem("token");
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
     };
 
-  });
+    fetchUser();
+  }, []);
 
+  // ✅ LOGIN
   const login = async (email, password) => {
+    try {
+      const res = await fetch("http://localhost:7050/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email, password })
+      });
 
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ email, password })
-    });
+      const data = await res.json();
 
-    const data = await res.json();
+      // ❗ CRITICAL FIX
+      if (!data.token) {
+        throw new Error("No token received");
+      }
+      localStorage.removeItem("token")
+      // ✅ store correct token
+      localStorage.setItem("token", data.token);
 
-    if (!data.token) {
-      throw new Error("Login failed");
+      // ✅ store user if needed
+      setUser(data.user);
+
+      return data;
+
+    } catch (err) {
+      console.error("LOGIN ERROR:", err);
+      throw err;
     }
-
-    localStorage.setItem("token", data.token);
-
-    const payload = decodeToken(data.token);
-
-    setUser({
-      token: data.token,
-      id: payload.id,
-      email: payload.email,
-      full_name: payload.full_name,
-      is_admin: payload.is_admin,
-      is_super_admin: payload.is_super_admin
-    });
-
   };
 
+  // ✅ LOGOUT
   const logout = () => {
-
     localStorage.removeItem("token");
-
     setUser(null);
-
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
+};
 
-}
-
-export function useAuth() {
-
-  return useContext(AuthContext);
-
-}
+export const useAuth = () => useContext(AuthContext);
