@@ -22,10 +22,14 @@ const app = express();
 /* =========================
    MIDDLEWARE
 ========================= */
+/* =========================
+   MIDDLEWARE
+========================= */
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS.split(","),
+  origin: (process.env.ALLOWED_ORIGINS || "").split(",").filter(Boolean),
   credentials: true,
-})); 
+}));
+
 app.use(express.json());
 
 /* =========================
